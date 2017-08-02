@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import SimpleStorageContract from '../build/contracts/SimpleStorage.json'
 import getWeb3 from './utils/getWeb3'
+import GitHubIssueList from './components/GitHubIssueList'
 
 import './css/oswald.css'
 import './css/open-sans.css'
@@ -17,7 +18,7 @@ class App extends Component {
     }
   }
 
-  componentWillMount() {
+  componentDidMount() {
     // Get network provider and web3 instance.
     // See utils/getWeb3 for more info.
 
@@ -67,6 +68,11 @@ class App extends Component {
     })
   }
 
+  voteForIssue(issue) {
+    //TODO - actually implement voting
+    console.log(issue);
+  }
+
   render() {
     return (
       <div className="App">
@@ -77,12 +83,9 @@ class App extends Component {
         <main className="container">
           <div className="pure-g">
             <div className="pure-u-1-1">
-              <h1>Good to Go!</h1>
-              <p>Your Truffle Box is installed and ready.</p>
-              <h2>Smart Contract Example</h2>
-              <p>If your contracts compiled and migrated successfully, below will show a stored value of 5 (by default).</p>
-              <p>Try changing the value stored on <strong>line 59</strong> of App.js.</p>
-              <p>The stored value is: {this.state.storageValue}</p>
+              <GitHubIssueList
+                user='rchain' repo='Members'
+                voteForIssue={this.voteForIssue} />
             </div>
           </div>
         </main>
