@@ -23,7 +23,7 @@ class GitHubIssueList extends React.Component {
   }
 
   handleClick(i) {
-    this.props.voteForIssue(this.state.gitHubIssues[i]);
+    this.props.voteForIssue(this.props.user, this.props.repo, this.state.gitHubIssues[i]);
   }
 
   render() {

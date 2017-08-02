@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
-import SimpleStorageContract from '../build/contracts/SimpleStorage.json'
+import ERC20Contract from '../build/contracts/ERC20.json'
+import ERC20VotingContract from '../build/contracts/ERC20Voting.json'
 import getWeb3 from './utils/getWeb3'
 import GitHubIssueList from './components/GitHubIssueList'
 
@@ -8,13 +9,18 @@ import './css/open-sans.css'
 import './css/pure-min.css'
 import './App.css'
 
+const Contract = require('truffle-contract')
+
 class App extends Component {
+
   constructor(props) {
     super(props)
 
     this.state = {
-      storageValue: 0,
-      web3: null
+      web3: null,
+      erc20Address: null,
+      erc20VotingAddress: null,
+      accounts: []
     }
   }
 
@@ -28,49 +34,84 @@ class App extends Component {
         web3: results.web3
       })
 
-      // Instantiate contract once web3 provided.
-      this.instantiateContract()
+      this.initContracts();
+      this.initAccounts();
+
     })
     .catch(() => {
       console.log('Error finding web3.')
     })
   }
 
-  instantiateContract() {
-    /*
-     * SMART CONTRACT EXAMPLE
-     *
-     * Normally these functions would be called in the context of a
-     * state management library, but for convenience I've placed them here.
-     */
-
-    const contract = require('truffle-contract')
-    const simpleStorage = contract(SimpleStorageContract)
-    simpleStorage.setProvider(this.state.web3.currentProvider)
-
-    // Declaring this for later so we can chain functions on SimpleStorage.
-    var simpleStorageInstance
-
-    // Get accounts.
-    this.state.web3.eth.getAccounts((error, accounts) => {
-      simpleStorage.deployed().then((instance) => {
-        simpleStorageInstance = instance
-
-        // Stores a given value, 5 by default.
-        return simpleStorageInstance.set(5, {from: accounts[0]})
-      }).then((result) => {
-        // Get the value from the contract to prove it worked.
-        return simpleStorageInstance.get.call(accounts[0])
-      }).then((result) => {
-        // Update state with the result.
-        return this.setState({ storageValue: result.c[0] })
+  initContracts() {
+    this.getERC20VotingInstance()
+      .then((erc20VotingInstance) => {
+        this.setState({
+          erc20VotingAddress: erc20VotingInstance.address
+        });
+        return erc20VotingInstance.token.call();
       })
+      .then((address) => {
+        this.setState({
+          erc20Address: address
+        });
+      });
+  }
+
+  initAccounts() {
+    this.state.web3.eth.getAccounts((error, accounts) => {
+        this.setState({
+          accounts: accounts
+        });
     })
   }
 
-  voteForIssue(issue) {
-    //TODO - actually implement voting
-    console.log(issue);
+  getERC20Instance() {
+    let ERC20 = Contract(ERC20Contract);
+    ERC20.setProvider(this.state.web3.currentProvider);
+    return ERC20.at(this.state.erc20Address);
+  }
+
+  getERC20VotingInstance() {
+    let ERC20Voting = Contract(ERC20VotingContract);
+    ERC20Voting.setProvider(this.state.web3.currentProvider);
+    return ERC20Voting.deployed();
+  }
+
+  approveERC20Withdrawl(amount) {
+    return this.getERC20Instance()
+      .then((erc20Instance) => {
+        return erc20Instance.approve(this.state.erc20VotingAddress, amount, {from: this.state.accounts[0]});
+      });
+  }
+
+  sendVote(key, amount) {
+    return this.getERC20VotingInstance()
+      .then((erc20VotingInstance) => {
+        return erc20VotingInstance.vote(key, amount, {from: this.state.accounts[0]});
+      });
+  }
+
+  getVotesFor(key) {
+    return this.getERC20VotingInstance()
+      .then((erc20VotingInstance) => {
+        return erc20VotingInstance.totalVotesFor.call(key);
+      });
+  }
+
+  voteForIssue(user, repo, issue) {
+    let amount = 1;
+    this.approveERC20Withdrawl(amount)
+      .then(() => {
+        this.sendVote(user + repo + issue.number, amount)
+          .then(() => { //TODO: remove displaying of result, have other way to display result
+            this.getVotesFor(user+repo+issue.number)
+              .then((r)=>console.log(r.c[0]))
+          });
+      })
+      .catch(function(e) {
+        console.log(e);
+      });
   }
 
   render() {
@@ -85,7 +126,7 @@ class App extends Component {
             <div className="pure-u-1-1">
               <GitHubIssueList
                 user='rchain' repo='Members'
-                voteForIssue={this.voteForIssue} />
+                voteForIssue={(user, repo, issue) => this.voteForIssue(user,repo,issue)} />
             </div>
           </div>
         </main>
